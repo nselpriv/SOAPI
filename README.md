@@ -1,2 +1,2 @@
 # SOAPI
-SOAPI - The OpenAPI Documentation Scanner 
+SOAPI - The OpenAPI Documentation Scanner. 
