@@ -50,6 +50,9 @@ def find_objects(tx):
     return results
 
 with driver.session() as session:
+    print("")
+    print("[+] Checking for objects accessible through public & private endpoints")
+    print("")
     try:
         objects = session.execute_read(find_objects)
         #print(objects)
@@ -80,13 +83,15 @@ with driver.session() as session:
                     pass
                     #print("[Public] Object " +  _object["n"]["name"]  + "can be reached from " + verb + " " + path)
             if protected and public_access:
-                print("[+++++] Object " +  _object["n"]["name"] + " can be reached from public & protected endpoints")
+                print("[+++++] Object " +  _object["n"]["name"] + "_object can be reached from public & protected endpoints")
             #print("------")
     except:
         print("[!] Error in querying the Neo4j DB")
 
 
-    print("==== SECOND CHECK ====")
+    print("")
+    print("[+] Checking for public accessible objects..")
+    print("")
     try:
         sec_objects = session.execute_read(check_security)
         if len(sec_objects) > 0:
@@ -109,8 +114,8 @@ with driver.session() as session:
                                 security_objects = session.execute_read(find_security_nodes, p["uid"])
                                 if len(security_objects) == 0:
                                     if verb == "get":
-                                        print("[Public Read] Object " +  _object["n"]["name"]  + " can be reached from " + verb + " " + path)
+                                        print("[Public Read] Object " +  _object["n"]["name"]  + "_object can be reached from '" + verb.upper() + " " + path + "'")
                                     else:
-                                        print("[Public Modify] Object " +  _object["n"]["name"]  + " can be reached from " + verb + " " + path)
+                                        print("[Public Modify] Object " +  _object["n"]["name"]  + "_object can be reached from " + verb.upper() + " " + path + "'")
     except:
         print("Error checking if security exists")

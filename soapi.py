@@ -14,9 +14,15 @@ banner = """
 """
 print(banner)
 
-directory = "samples"
+openapi_files = "samples" 
 
-for filename in os.scandir(directory):
+os.makedirs(openapi_files, exist_ok=True)
+os.makedirs("neo4j", exist_ok=True)
+
+if not os.listdir(openapi_files):
+	print("[!] The '" + openapi_files + "' directory is empty! Drop the OpenAPI documentations inside it to start the scanner")
+
+for filename in os.scandir(openapi_files):
 	if filename.is_file():
 		print("[------------------------------]")
 		print("[+] Cleaning Neo4j DB..")
