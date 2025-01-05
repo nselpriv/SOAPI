@@ -49,6 +49,25 @@ def find_objects(tx):
     results = [record for record in result.data()]
     return results
 
+def find_verb_objects(tx):
+    query = """
+    MATCH (n)
+    WHERE n.type = "verb"
+    RETURN n
+    """
+    result = tx.run(query)
+    results = [record for record in result.data()]
+    return results
+
+with driver.session() as session:
+    print("")
+    print("[+] Stats:")
+    print("")
+    
+    objects = session.execute_read(find_verb_objects)
+    print("There are " + str(len(objects)) + " unique endpoints" )
+
+
 with driver.session() as session:
     print("")
     print("[+] Checking for objects accessible through public & private endpoints")
