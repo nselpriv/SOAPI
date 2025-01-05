@@ -1,5 +1,10 @@
-# SOAPI
-SOAPI - Scanning OpenAPIs, one documentation at a time
+# SOAPI - Scanning OpenAPIs
+
+Map OpenAPI documentations as Neo4J graphs and uncover vulnerabilities in the design implementation of the API. 
+
+SOAPI helps you detect sensitive data exposure, public endpoint leaks and rate-limiting bypasses through graph traversal techniques - a Bloodhound for APIs.
+
+Developed for OWASP Copenhagen 2024 and Disobey 2025 conferences - recordings coming soon!
 
 Check out the [SquareSec SOAPI Guide](https://www.sqrsec.com/soapi-guide) to see how to use it
 
