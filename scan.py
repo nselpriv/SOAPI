@@ -9,6 +9,43 @@ password = neo4j_config["password"]
 driver = GraphDatabase.driver(uri, auth=(username, password))
 
 
+# returns public readble fields below a given node
+def get_read_fields(tx, _obj_uid):
+    query = """ 
+        MATCH p=(startNode {uid: $_obj_uid})-[*]->(connectedNode)
+        WHERE NONE(n IN nodes(p) WHERE n.type IN ['parameters', 'security', 'body']) 
+        WITH last(nodes(p)) AS leafNode
+        WHERE NOT (leafNode)-[]->()
+        RETURN leafNode
+    """
+    result = tx.run(query, _obj_uid=_obj_uid)
+    results = [record for record in result.data()]
+    return results
+
+def find_unauthenticated_endpoints(tx):
+    query = """
+    MATCH (v {type: "verb"})<-[]-(incoming) 
+    WHERE NOT EXISTS {
+        MATCH (v)-[]->(s {type: "security"})
+    }
+    RETURN v, incoming
+    """
+    result = tx.run(query)
+    results = [record for record in result.data()]
+    return results
+
+def find_authenticated_endpoints(tx):
+    query = """
+    MATCH (v {type: "verb"})<-[]-(incoming) 
+    WHERE EXISTS {
+        MATCH (v)-[]->(s {type: "security"})
+    }
+    RETURN v, incoming
+    """
+    result = tx.run(query)
+    results = [record for record in result.data()]
+    return results
+
 def find_security_nodes(tx, _obj_uid):
     query = """
     MATCH (n {uid: $_obj_uid})-->(m)
@@ -59,6 +96,8 @@ def find_verb_objects(tx):
     results = [record for record in result.data()]
     return results
 
+
+
 with driver.session() as session:
     print("")
     print("[+] Stats:")
@@ -66,20 +105,35 @@ with driver.session() as session:
     
     objects = session.execute_read(find_verb_objects)
     print("There are " + str(len(objects)) + " unique endpoints" )
+    public_endpoints = session.execute_read(find_unauthenticated_endpoints)
+    print(" - " + str(len(public_endpoints)) + " public endpoints" )
+    protected_endpoints = session.execute_read(find_authenticated_endpoints)
+    print(" - " + str(len(protected_endpoints)) + " protected endpoints" )
+
 
 
 with driver.session() as session:
     print("")
-    print("[+] Checking for objects accessible through public & private endpoints")
+    print("[+] List objects accessible through public & private endpoints")
     print("")
+    public_endpoints = session.execute_read(find_unauthenticated_endpoints)
+    protected_endpoints = session.execute_read(find_authenticated_endpoints)
+    objects = session.execute_read(find_objects)
+    public = []
+    protected = []
+    
     try:
-        objects = session.execute_read(find_objects)
-        #print(objects)
-        paths = set()
+        #print("[+] Public endpoints")
+        for endpoint in public_endpoints:
+            #print(endpoint['v']['name'] + " " + endpoint['incoming']['name'])
+            public.append(endpoint['v']['name'] + " " + endpoint['incoming']['name'])
+        #print("[+] Protected endpoints")
+        for endpoint in protected_endpoints:
+            #print(endpoint['v']['name'] + " " + endpoint['incoming']['name'])
+            protected.append(endpoint['v']['name'] + " " + endpoint['incoming']['name'])
         for _object in objects:
+            access = []
             connections = session.execute_read(find_paths, _object["n"]["uid"])
-            protected = False
-            public_access = False
             for connection in connections:
                 path = ""
                 verb = ""
@@ -89,52 +143,46 @@ with driver.session() as session:
                             path = p["name"]
                         if p["type"] == "verb":
                             verb = p["name"]
-                            # todo: check if security is optional
-                            security_objects = session.execute_read(find_security_nodes, p["uid"])
-                            if len(security_objects) > 0:
-                                protected = True
-                            if len(security_objects) == 0:
-                                public_access = True
-                if protected:
-                    pass
-                    #print("[Protected] Object " +  _object["n"]["name"]  + "can be reached from " + verb + " " + path)
-                else:
-                    pass
-                    #print("[Public] Object " +  _object["n"]["name"]  + "can be reached from " + verb + " " + path)
-            if protected and public_access:
-                print("[+++++] Object " +  _object["n"]["name"] + "_object can be reached from public & protected endpoints")
-            #print("------")
+                access.append(verb + " " + path)
+            #print(access)
+            public_acc = []
+            protected_acc = []
+            for acc in access:
+                if acc in public:
+                    public_acc.append(acc)
+                if acc in protected:
+                    protected_acc.append(acc)
+            if len(public_acc) > 0 and len(protected_acc) > 0:
+                print("")
+                print("[+] " + _object["n"]["name"])
+                [print("Public: " + item) for item in public_acc]
+                [print("Protected: " +item) for item in protected_acc]
+
     except:
-        print("[!] Error in querying the Neo4j DB")
+        print("[!] Error listing objects accessible through public & private endpoints!")
 
 
+    #### List public endpoints ####
     print("")
-    print("[+] Checking for public accessible objects..")
+    print("[+] List public endpoints")
     print("")
     try:
-        sec_objects = session.execute_read(check_security)
-        if len(sec_objects) > 0:
-            objects = session.execute_read(find_objects)
-            paths = set()
-            for _object in objects:
-                connections = session.execute_read(find_paths, _object["n"]["uid"])
-                protected = False
-                public_access = False
-                for connection in connections:
-                    path = ""
-                    verb = ""
-                    for p in connection["path"]:
-                        if type(p) is dict:
-                            if p["type"] == "path":
-                                path = p["name"]
-                            if p["type"] == "verb":
-                                verb = p["name"]
-                                # todo: check if security is optional
-                                security_objects = session.execute_read(find_security_nodes, p["uid"])
-                                if len(security_objects) == 0:
-                                    if verb == "get":
-                                        print("[Public Read] Object " +  _object["n"]["name"]  + "_object can be reached from '" + verb.upper() + " " + path + "'")
-                                    else:
-                                        print("[Public Modify] Object " +  _object["n"]["name"]  + "_object can be reached from " + verb.upper() + " " + path + "'")
+        objects = session.execute_read(find_unauthenticated_endpoints)
+        for _object in objects:
+            print(_object['v']['name'] + " " + _object['incoming']['name'])
     except:
-        print("Error checking if security exists")
+        print("[!] Error to list public endpoints")
+
+
+    #### List public fields ####
+    print("")
+    print("[+] List public readble fields")
+    print("")
+    
+    objects = session.execute_read(find_unauthenticated_endpoints)
+    for _object in objects:
+        paths = session.execute_read(get_read_fields, _object['v']['uid'])
+        print("----")
+        print(_object['v']['name'].upper() + " " + _object['incoming']['name'])
+        for path in paths:
+            print("[-] " + path['leafNode']['name'])
