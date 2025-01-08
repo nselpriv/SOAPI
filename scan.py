@@ -9,6 +9,28 @@ password = neo4j_config["password"]
 driver = GraphDatabase.driver(uri, auth=(username, password))
 
 
+
+def get_paths_with_response(tx, _leaf_name):
+    query = """
+        MATCH p = (start {type: "path"})-[*]->(mid {type: "responses"})-[*]->(end {name: $_leaf_name})
+        RETURN p
+    """
+    result = tx.run(query, _leaf_name=_leaf_name)
+    results = [record for record in result.data()]
+    return results
+
+def get_parameters(tx, _verb_uid):
+    query = """
+        MATCH p=(startNode {uid: $_verb_uid})-[*]->(connectedNode)
+        WHERE NONE(n IN nodes(p) WHERE n.type IN ['responses', 'security']) 
+        WITH last(nodes(p)) AS leafNode
+        WHERE NOT (leafNode)-[]->()
+        RETURN leafNode
+    """
+    result = tx.run(query, _verb_uid=_verb_uid)
+    results = [record for record in result.data()]
+    return results
+
 # returns public readble fields below a given node
 def get_read_fields(tx, _obj_uid):
     query = """ 
@@ -111,11 +133,43 @@ with driver.session() as session:
     print(" - " + str(len(protected_endpoints)) + " protected endpoints" )
 
 
+#might be worth considering to search only by parameter name in the responses, instead of including also the parameter type
+# i.e: "username" instead of "string username"
 
 with driver.session() as session:
     print("")
-    print("[+] List objects accessible through public & private endpoints")
+    print("[+] IDOR ID Finder:")
     print("")
+
+    verbs = session.execute_read(find_verb_objects)
+    for verb in verbs:
+        parameters = session.execute_read(get_parameters, verb['n']['uid'])
+        if parameters is not None:
+            for parameter in parameters:
+                connections = session.execute_read(get_paths_with_response, parameter['leafNode']['name'])
+                if connections is not None:
+                    print("")
+                    print("[*] " + verb['n']['uid'])
+                    print(parameter['leafNode']['name'])
+                    for connection in connections:
+                        path_name = ""
+                        verb_name = ""
+                        for p in connection["p"]:
+                            if type(p) is dict:
+                                if p["type"] == "path":
+                                    path_name = p["name"]
+                                if p["type"] == "verb":
+                                    verb_name = p["name"]
+                        print(" -> " + verb_name + " " + path_name)
+
+            print("")
+
+
+
+with driver.session() as session:
+    print(" ")
+    print("[+] List objects accessible through public & private endpoints")
+    print(" ")
     public_endpoints = session.execute_read(find_unauthenticated_endpoints)
     protected_endpoints = session.execute_read(find_authenticated_endpoints)
     objects = session.execute_read(find_objects)
@@ -153,7 +207,7 @@ with driver.session() as session:
                 if acc in protected:
                     protected_acc.append(acc)
             if len(public_acc) > 0 and len(protected_acc) > 0:
-                print("")
+                print(" ")
                 print("[+] " + _object["n"]["name"])
                 [print("Public: " + item) for item in public_acc]
                 [print("Protected: " +item) for item in protected_acc]
@@ -186,3 +240,9 @@ with driver.session() as session:
         print(_object['v']['name'].upper() + " " + _object['incoming']['name'])
         for path in paths:
             print("[-] " + path['leafNode']['name'])
+
+
+    print("")
+    print("[+] IDOR Finder")
+    print("")
+

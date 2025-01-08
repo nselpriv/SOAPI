@@ -40,6 +40,7 @@ requestbody_field_relationship = {}
 response_object_relationship = {}
 response_field_relationship = {}
 parameters_relationship = {}
+parameters_object_relationship = {}
 verb_security_relationship = {}
 
 
@@ -104,6 +105,7 @@ neo4j_data["relationships"].append(verb_response_relationship)
 neo4j_data["relationships"].append(requestbody_object_relationship)
 neo4j_data["relationships"].append(response_object_relationship)
 neo4j_data["relationships"].append(parameters_relationship)
+neo4j_data["relationships"].append(parameters_object_relationship)
 neo4j_data["relationships"].append(verb_security_relationship)
 neo4j_data["relationships"].append(response_field_relationship)
 neo4j_data["relationships"].append(requestbody_field_relationship)
@@ -192,6 +194,13 @@ parameters_relationship["to_node"] = {"record_key":"_to_uid", "node_key":"uid", 
 parameters_relationship["exclude_keys"] = ["_from_uid", "_to_uid"]
 parameters_relationship["records"] = []
 
+# Parameters -> objects
+parameters_object_relationship["type"] = "has object"
+parameters_object_relationship["from_node"] = {"record_key":"_from_uid","node_key":"uid","node_label":"Parameter"}
+parameters_object_relationship["to_node"] = {"record_key":"_to_uid", "node_key":"uid", "node_label": "Object" }
+parameters_object_relationship["exclude_keys"] = ["_from_uid", "_to_uid"]
+parameters_object_relationship["records"] = []
+
 # Verb -> security relationship
 verb_security_relationship["type"] = "secured by"
 verb_security_relationship["from_node"] = {"record_key":"_from_uid","node_key":"uid","node_label":"Verb"}
@@ -201,7 +210,7 @@ verb_security_relationship["records"] = []
 
 
 
-try:
+if True:
 	openapi_file = sys.argv[1] 
 
 
@@ -211,6 +220,7 @@ try:
 		if True:
 			json_content = json.load(my_file)
 			schemas = {}
+			requestBodies = {}
 			paths = {}
 			securitySchemes = {}
 			globalSecurity = {}
@@ -246,6 +256,8 @@ try:
 					schemas = json_content["components"]["schemas"]
 				if "securitySchemes" in json_content["components"]:
 					securitySchemes = json_content["components"]["securitySchemes"]
+				if "requestBodies" in json_content["components"]:
+					requestBodies = json_content["components"]["requestBodies"]
 			#create security schemas objects
 			for securitySchema in securitySchemes:
 				security_record = {}
@@ -321,6 +333,15 @@ try:
 									parameters_relationship["records"].append(relationship)
 								elif "$ref" in parameter["schema"]:
 									print("TODO: object as parameter")
+									reference = parameter["schema"]["$ref"].split("/")
+									ref = reference[len(reference) - 1]
+									#Link object to params
+									relationship = {}
+									relationship["_from_uid"] = parameters_record["uid"]
+									relationship["_to_uid"] = ref + "_object"
+									print(relationship["_from_uid"] + " -> " + relationship["_to_uid"])
+									parameters_object_relationship["records"].append(relationship)
+									print(ref)
 								else:
 									print("WTF?")
 							else:
@@ -424,8 +445,18 @@ try:
 						relationship["_from_uid"] = verb_record["uid"]
 						relationship["_to_uid"] = requestbody_record["uid"]
 						verb_requestbody_relationship["records"].append(relationship)
+						print("Creating link between " + relationship["_from_uid"] + " and " + relationship["_to_uid"])
 						for requestBody in paths[path][path_verb]["requestBody"]:
-							#print("requestBody: " + requestBody)
+							print("requestBody: " + requestBody)
+							if "$ref" in paths[path][path_verb]["requestBody"]:
+								reference = paths[path][path_verb]["requestBody"]["$ref"].split("/")
+								ref = reference[len(reference) - 1]
+								# Create link between requestbody and object
+								relationship = {}
+								relationship["_from_uid"] = requestbody_record["uid"]
+								relationship["_to_uid"] = ref + "_object"
+								requestbody_object_relationship["records"].append(relationship)
+								print("Creating link between " + requestbody_record["uid"] + " and " + ref + "_object")
 							if "content" in paths[path][path_verb]["requestBody"]:
 								for c in paths[path][path_verb]["requestBody"]["content"]:
 									cnt = paths[path][path_verb]["requestBody"]["content"][c]
@@ -438,7 +469,7 @@ try:
 										relationship["_from_uid"] = requestbody_record["uid"]
 										relationship["_to_uid"] = ref + "_object"
 										requestbody_object_relationship["records"].append(relationship)
-										#print("Creating link between " + requestbody_record["uid"] + " and " + ref + "_object")
+										print("Creating link between " + requestbody_record["uid"] + " and " + ref + "_object")
 									elif "type" in cnt["schema"]:
 										if cnt["schema"]["type"] == "array":
 											pass
@@ -456,7 +487,7 @@ try:
 											relationship["_from_uid"] = requestbody_record["uid"]
 											relationship["_to_uid"] = field_record["uid"]
 											requestbody_field_relationship["records"].append(relationship)
-											#print("------>(3)request type" + cnt["schema"]["type"])
+											print("------>(3)request type" + cnt["schema"]["type"])
 									elif "example" in cnt["schema"]:
 										#create field node
 										field_record = {}
@@ -518,6 +549,64 @@ try:
 							relationship["type"] = "security"
 							verb_security_relationship["records"].append(relationship)
 
+
+			## Parse the requestBodies
+			if requestBodies is not None:
+				print("Parsing request bodies..")
+				#print(requestBodies)
+				for requestBody in requestBodies:
+					obj_record = {}
+					obj_record["uid"] = requestBody + "_object"
+					obj_record["name"] = requestBody
+					obj_record["type"] = "object"
+					object_node["records"].append(obj_record)
+					print(obj_record)
+					#print(requestBodies[requestBody]["content"])
+					keys = list(requestBodies[requestBody]["content"].keys())
+					#print(keys[0])
+					#check if there is a "schema" defined inside the request body content
+					if "schema" in requestBodies[requestBody]["content"][keys[0]]:
+						schema = requestBodies[requestBody]["content"][keys[0]]["schema"]
+					#if schema is empty, skip this object
+					if schemas is None:
+						continue
+					if "properties" in schema:
+						properties = schema["properties"]
+					for prop in properties:
+						print(prop)
+						if "type" in properties[prop]:
+							print("type")
+							if properties[prop]["type"] == "array":
+								if "items" not in properties[prop]:
+									continue
+								if "type" in properties[prop]["items"]:
+									print("Todo array of things in requestbody")
+								elif "$ref" in properties[prop]["items"]:
+									print("Todo array of objects in requestbody")
+								else:
+									print("todo array of ??? in requestbody")
+							else:
+								print("fields in requestbody")
+								#create field node
+								field_record = {}
+								field_record["uid"] = requestBody + "_" + properties[prop]["type"] + "_" + prop
+								field_record["name"] = properties[prop]["type"] + " " + prop
+								field_record["type"] = "field"
+								field_node["records"].append(field_record)
+								#link field to object
+								relationship = {}
+								relationship["_from_uid"] = obj_record["uid"]
+								relationship["_to_uid"] = field_record["uid"]
+								object_field_relationship["records"].append(relationship)
+						elif "$ref" in properties[prop]:
+							print("$ref")
+						elif "allOf" in properties[prop]:
+							print("allOf")
+						elif "type" not in properties[prop] and "items" in properties[prop]:
+							print("just an object, not an array of objects")
+						else:
+							print("undefined request body forma")
+							print(properties[prop])
 			## Parse the Object Schemas
 			if schemas is not None:
 				for schema in schemas:
@@ -655,8 +744,8 @@ try:
 							print(properties[prop])
 		else:
 			pass
-except:
-	print("[!] Error in parsing OpenAPI JSON file")
+#except:
+#	print("[!] Error in parsing OpenAPI JSON file")
 
 #print(json.dumps(neo4j_data, indent=4))
 
