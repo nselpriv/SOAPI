@@ -1,10 +1,17 @@
 # SOAPI - Scanning OpenAPIs
 
-Map OpenAPI documentations as Neo4J graphs and uncover vulnerabilities in the design implementation of the API. 
+Map OpenAPI documentations as Neo4J graphs and uncover vulnerabilities in the design implementation of the API. A Bloodhound for APIs.
 
-SOAPI helps you detect sensitive data exposure, public endpoint leaks and rate-limiting bypasses through graph traversal techniques - a Bloodhound for APIs.
+SOAPI uses graph traversal techniques to helps you detect:
+- potential sensitive data exposure
+- public endpoint leaks
+- rate-limiting bypasses
+- parameter example values for IDOR exploitation
+- data sinks  
 
 Developed for OWASP Copenhagen 2024 and Disobey 2025 conferences - recordings coming soon!
+
+OWASP 2024 - [PDF Slides 2024 ](https://0xpwn.wordpress.com/wp-content/uploads/2024/09/a-deep-dive-into-openapi-security.pdf)
 
 Check out the [SquareSec SOAPI Guide](https://www.sqrsec.com/soapi-guide) to see how to use it
 
