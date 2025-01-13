@@ -17,6 +17,7 @@ directory = 'samples'
 neo4j_data = {}
 neo4j_data["nodes"] = []
 neo4j_data["relationships"] = []
+path_supported_verbs = ["get", "put", "post", "delete", "options", "head", "patch", "trace"]
 
 # Define Nodes
 path_node = {}
@@ -216,7 +217,7 @@ if True:
 
 	print("============")
 	print("OPEN API SPEC DOC: "+ openapi_file)
-	with open(openapi_file, encoding="utf8") as my_file:
+	with open(openapi_file, "r", encoding="utf-8-sig") as my_file:
 		if True:
 			json_content = json.load(my_file)
 			schemas = {}
@@ -276,6 +277,8 @@ if True:
 				if paths[path] is None:
 					continue
 				for path_verb in paths[path]:
+					if path_verb not in path_supported_verbs:
+						continue
 					print("--------")
 					print(path_verb + " " + path)
 					#pp(paths[path][path_verb], depth=5, indent=4)
@@ -556,6 +559,7 @@ if True:
 				#print(requestBodies)
 				for requestBody in requestBodies:
 					obj_record = {}
+					properties = {}
 					obj_record["uid"] = requestBody + "_object"
 					obj_record["name"] = requestBody
 					obj_record["type"] = "object"
