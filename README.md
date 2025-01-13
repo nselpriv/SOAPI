@@ -1,10 +1,17 @@
 # SOAPI - Scanning OpenAPIs
 
-Map OpenAPI documentations as Neo4J graphs and uncover vulnerabilities in the design implementation of the API. 
+Map OpenAPI documentations as Neo4J graphs and uncover vulnerabilities in the design implementation of the API. A Bloodhound for APIs.
 
-SOAPI helps you detect sensitive data exposure, public endpoint leaks and rate-limiting bypasses through graph traversal techniques - a Bloodhound for APIs.
+SOAPI uses graph traversal techniques to helps you detect:
+- potential sensitive data exposure
+- public endpoint leaks
+- rate-limiting bypasses
+- parameter example values for IDOR exploitation
+- data sinks  
 
 Developed for OWASP Copenhagen 2024 and Disobey 2025 conferences - recordings coming soon!
+
+OWASP 2024 - [PDF Slides 2024 ](https://0xpwn.wordpress.com/wp-content/uploads/2024/09/a-deep-dive-into-openapi-security.pdf)
 
 Check out the [SquareSec SOAPI Guide](https://www.sqrsec.com/soapi-guide) to see how to use it
 
@@ -56,26 +63,115 @@ python3 soapi.py
 [+] Uploading data to Neo4j server..
 [+] Data uploaded succesfully!
 [+] Checking vulnerable paths..
+[------------------------------]
 
-[+] Checking for objects accessible through public & private endpoints
+[+] Stats:
 
-[+++++] Object serverError_object can be reached from public & protected endpoints
-[+++++] Object unsupportedMediaType415_object can be reached from public & protected endpoints
-[+++++] Object invalidQuery_object can be reached from public & protected endpoints
-[+++++] Object eventNF_object can be reached from public & protected endpoints
-[+++++] Object userNF_object can be reached from public & protected endpoints
+There are 25 unique endpoints
+ - 14 public endpoints
+ - 11 protected endpoints
 
-[+] Checking for public accessible objects..
+[------------------------------]
 
-[Public Read] Object bigList_object can be reached from 'GET /v1/multimedia/stream'
-[Public Read] Object image_object can be reached from 'GET /v1/multimedia/image'
-[Public Read] Object video_object can be reached from 'GET /v1/multimedia/video'
-[Public Read] Object resourceNF_object can be reached from 'GET /v1/multimedia/image'
-[Public Read] Object resourceNF_object can be reached from 'GET /v1/multimedia/video'
-[Public Read] Object multimedia400_object can be reached from 'GET /v1/multimedia/image'
-[Public Read] Object multimedia400_object can be reached from 'GET /v1/multimedia/video'
-[Public Modify] Object signInResponse_object can be reached from POST /v1/signin'
-[Public Modify] Object signInResponse401_object can be reached from POST /v1/signin'
+[+] IDOR ID Finder:
+
+[*] post_/v1/signin
+string username
+ -> post /v1/signin
+ -> get /v1/check
+ -> get /v1/user/:{username}
+
+[*] post_/v1/signup
+string username
+ -> post /v1/signin
+ -> get /v1/check
+ -> get /v1/user/:{username}
+
+[------------------------------]
+
+[+] List objects accessible through public & private endpoints
+
+[+] serverError
+Public: post /v1/signin
+Public: get /v1/user
+Public: get /v1/user/:{username}
+Public: get /v1/event
+Public: get /v1/event/:{uuid}
+Public: get /v1/multimedia/image
+Public: get /v1/multimedia/video
+Public: get /v1/report
+Public: get /v1/report/info
+Public: get /v1/stat
+Protected: post /v1/signup
+Protected: get /v1/check
+Protected: delete /v1/user/:{username}
+Protected: delete /v1/event/:{uuid}
+Protected: patch /v1/event/comment
+Protected: post /v1/report
+Protected: patch /v1/report/info
+Protected: delete /v1/report/info
+
+[+] unsupportedMediaType415
+Public: post /v1/signin
+Protected: post /v1/signup
+Protected: put /v1/event
+Protected: patch /v1/event/comment
+Protected: patch /v1/jetson/docker
+Protected: patch /v1/jetson/image
+Protected: post /v1/report
+Protected: patch /v1/report/info
+Protected: delete /v1/report/info
+
+[------------------------------]
+
+[+] List public readble fields
+
+----
+POST /v1/signin
+[-] string accessToken
+[-] string username
+[-] string error
+----
+GET /v1/user
+[-] [string] users
+[-] string error
+----
+GET /v1/user/:{username}
+[-] string username
+[-] string first_name
+[-] string last_name
+[-] string role
+[-] string error
+[-] string error
+----
+GET /v1/event/:{uuid}
+[-] string uid
+[-] integer number
+[-] string side
+[-] integer brigade
+[-] string video_path
+[-] string image_path
+[-] string start_time
+[-] string end_time
+
+[------------------------------]
+
+[+] List public endpoints
+
+post /v1/signin
+get /v1/user
+get /v1/user/:{username}
+get /v1/event
+get /v1/event/:{uuid}
+get /v1/event/status
+get /v1/jetson/docker
+get /v1/jetson/image
+get /v1/multimedia/stream
+get /v1/multimedia/image
+get /v1/multimedia/video
+get /v1/report
+get /v1/report/info
+get /v1/stat
 ```
 
 ## 4. Analyze
