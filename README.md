@@ -12,6 +12,7 @@ SOAPI uses graph traversal techniques to helps you detect:
 Developed for OWASP Copenhagen 2024 and Disobey 2025 conferences - recordings coming soon!
 
 OWASP 2024 - [PDF Slides 2024 ](https://0xpwn.wordpress.com/wp-content/uploads/2024/09/a-deep-dive-into-openapi-security.pdf)
+Disobey 2025 - [PDF Slieds 2025](https://0xpwn.wordpress.com/wp-content/uploads/2025/02/hunting-for-attack-paths-in-openapi-documentations.pdf)
 
 Check out the [SquareSec SOAPI Guide](https://www.sqrsec.com/soapi-guide) to see how to use it
 
