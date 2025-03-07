@@ -9,9 +9,13 @@ COPY requirements.txt .
 COPY scan.py .
 COPY soapi.py . 
 COPY upload.py . 
+COPY samples/ ./samples/
 
 RUN pip install --no-cache-dir -r requirements.txt
 
 FROM build AS run
 
 CMD ["python", "soapi.py"]
+#WORKDIR /app
+#
+#CMD ["tail", "-f", "/dev/null"]
