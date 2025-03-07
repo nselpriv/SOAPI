@@ -15,7 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 FROM build AS run
 
-#CMD ["python", "soapi.py"]
-
-
-CMD ["bash"]
+CMD ["python", "soapi.py"]
