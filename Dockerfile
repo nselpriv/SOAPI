@@ -7,9 +7,8 @@ COPY config.py .
 COPY parse.py .
 COPY requirements.txt .
 COPY scan.py .
-COPY soapi.py . 
-COPY upload.py . 
-COPY samples/ ./samples/
+COPY soapi.py .
+COPY upload.py .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
