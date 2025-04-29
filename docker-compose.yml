@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: SOAPI
+    # restart: unless-stopped
     environment:
       - APP_ENV=production
       - NEO4J_URI=bolt://neo4j:7687
@@ -14,18 +15,26 @@ services:
     ports:
       - "5001:5000"
     depends_on:
-      - neo4j
+      neo4j:
+        condition: service_healthy
+        restart: true
     networks:
       - app_network
 
   neo4j:
     image: neo4j:2025.02.0-community-bullseye
     container_name: neo4j
+    restart: unless-stopped
     environment:
       - NEO4J_AUTH=neo4j/mysecurepassword
     ports:
       - "7474:7474" # Web UI
       - "7687:7687" # Bolt Protocol
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7474"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
     networks:
       - app_network
 
