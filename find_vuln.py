@@ -117,7 +117,7 @@ def process_results(results, base_url):
             print(f"Error processing record {record}: {e}")
 
 if __name__ == "__main__":
-    base_url = "https://uk-partnerapi.just-eat.io/"
+    base_url = "https://uk.api.just-eat.io/"
 
     with driver.session() as session:
         results = session.execute_read(run_query, query)
