@@ -5,3 +5,4 @@ neo4j_config = {
     "username": os.getenv("NEO4J_USER", "neo4j"),
     "password": os.getenv("NEO4J_PASSWORD", "mysecurepassword")
 }
+BUG_BOUNTY_USERNAME = os.getenv("BUG_BOUNTY_USERNAME")

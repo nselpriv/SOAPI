@@ -3,6 +3,24 @@ import re
 import requests
 from neo4j import GraphDatabase
 
+from config import BUG_BOUNTY_USERNAME
+from scan import find_unauthenticated_endpoints
+
+
+def find_unauthenticated_endpoints(tx):
+    query = """
+    MATCH (v {type: "verb"})<-[]-(incoming) 
+    WHERE NOT EXISTS {
+        MATCH (v)-[]->(s {type: "security"})
+    }
+    RETURN v, incoming
+    """
+    result = tx.run(query)
+    results = [record for record in result.data()]
+    return results
+
+
+
 # Set up the connection details
 uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 username = os.getenv("NEO4J_USER", "neo4j")
@@ -12,7 +30,7 @@ driver = GraphDatabase.driver(uri, auth=(username, password))
 # Revised query that retrieves the full chain including parameter nodes via `has param`
 query = """
 MATCH (p:Path)-[r:can]-(v)
-WHERE v.name in ['get'] //AND NOT (v)-[:`secured by`]->()
+// WHERE v.name in ['get'] //AND NOT (v)-[:`secured by`]->()
 OPTIONAL MATCH path = (v)-[rels:contains*]->(descendant)
 OPTIONAL MATCH (descendant)-[:`has param`*1..]->(param)
 RETURN p, r, v,
@@ -37,7 +55,9 @@ def replace_placeholders_in_url(url, params):
 def make_http_request(record, base_url):
     p = record.get("p")
     v = record.get("v")
-
+    headers = {
+        "x-bug-bounty": BUG_BOUNTY_USERNAME
+    }
     if not p or not v:
         raise ValueError("Record must contain p and v nodes.")
 
@@ -68,7 +88,7 @@ def make_http_request(record, base_url):
     # Make the HTTP request using the correct method type
     try:
         if method == "post":
-            response = requests.post(url, json=params)
+            response = requests.post(url, json=params,headers=headers)
         elif method == "put":
             response = requests.put(url, json=params)
         elif method == "delete":
@@ -87,6 +107,8 @@ def make_http_request(record, base_url):
         print(f"HTTP request failed: {e}")
         return None
 
+
+
 def process_results(results, base_url):
     for record in results:
         try:
@@ -99,5 +121,7 @@ if __name__ == "__main__":
 
     with driver.session() as session:
         results = session.execute_read(run_query, query)
+        # results = find_unauthenticated_endpoints(session)
+        # print(results)
         process_results(results, base_url)
     driver.close()
